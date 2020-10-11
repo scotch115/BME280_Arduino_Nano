@@ -18,12 +18,6 @@
 // software SPI
 Adafruit_LIS3DH lis = Adafruit_LIS3DH(LIS3DH_CS, LIS3DH_MOSI, LIS3DH_MISO, LIS3DH_CLK);
 
-
-#define BME_SCK 12
-#define BME_MISO 11
-#define BME_MOSI 10
-#define BME_CS 9
-
 #define SEALEVELPRESSURE_HPA (1016.3)
 
 #define SPIWIFI       SPI  // The SPI port
@@ -46,14 +40,13 @@ WiFiUDP Udp;
 char networkName[] = NETWORK;
 char password[] = PASSWORD;
 
-char packetBuffer[255];
-char wait[100] = "Flight Computer waiting to establish connection to Ground Control";
+char packetBuffer[100];
+char wait[80] = "Flight Computer waiting to establish connection to Ground Control";
 char flightData[100];
 
 void setup() {
   Serial.begin(9600);
   delay(2000);  // time to get serial running
-  Serial.println(F("Power on"));
 
   unsigned status;
   unsigned lStatus;
@@ -88,13 +81,10 @@ void setup() {
 
   WiFi.setPins(SPIWIFI_SS, SPIWIFI_ACK, ESP32_RESETN, ESP32_GPIO0, &SPIWIFI);  
   while (WiFi.status() == WL_NO_MODULE) {
-    Serial.println(F("AirLift Featherwing not detected!"));
     delay(1000);
   }
-
-  Serial.println(F("AirLift Featherwing detected."));
   
-  Serial.println(F("Attempting to connect to WiFi "));
+  Serial.println(F("Connecting to WiFi "));
   do {
     wStatus = WiFi.begin(networkName, password);
     delay(100);
@@ -116,11 +106,6 @@ void setup() {
   if (!status) {
     cpuReady == false;
     Serial.println(F("Could not find a valid BME280 sensor, check wiring, address, sensor ID!"));
-    Serial.print("SensorID was: 0x"); Serial.println(bme.sensorID(), 16);
-    Serial.print("        ID aof 0xFF probably means a bad address, a BMP 180 or BMP 085\n");
-    Serial.print("   ID of 0x56-0x58 represents a BMP 280,\n");
-    Serial.print("        ID of 0x60 represents a BME 280.\n");
-    Serial.print("        ID of 0x61 represents a BME 680.\n");
     while (1) delay(10);
   } else {
     Udp.beginPacket(remoteIp, 2931);
@@ -140,7 +125,7 @@ void setup() {
     Serial.println(F("Couldnt start"));
     cpuReady == false;
     while (1) yield();
-  } else { Serial.println(F("LIS3DH Detected.")); }
+  }
 
   lis.setRange(LIS3DH_RANGE_4_G);   // 2, 4, 8 or 16 G!
 
@@ -154,11 +139,10 @@ void setup() {
   delay(2000);
 
   pinMode(A0, OUTPUT);
-//  digitalWrite(A0, HIGH);
-  pinMode(A0, INPUT_PULLUP);
+  analogWrite(A0, 150);
   
-  int continuityVal = digitalRead(A0);
-  if (continuityVal == HIGH) {
+  int continuityVal = analogRead(A0);
+  if (continuityVal == 150) {
     Udp.beginPacket(remoteIp, 2931);
     Udp.write(continuityPass);
     Udp.endPacket();
@@ -168,7 +152,6 @@ void setup() {
     Udp.endPacket();
   }
 
-  Serial.println(F("== Startup process completed. =="));
   cpuReady == true;
   
   // Attempting to send confirmation to remote server to show startup has completed, but it's not loading the rest of the code when I do that... hmmmm
@@ -248,7 +231,7 @@ void printWifiStatus() {
 
   // print the received signal strength:
   long rssi = WiFi.RSSI();
-  Serial.print(F("signal strength (RSSI):"));
+  Serial.print(F("signal strength:"));
   Serial.print(rssi);
   Serial.println(F(" dBm"));
 

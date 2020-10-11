@@ -73,14 +73,15 @@ void setup() {
   Udp.endPacket();  
   pinMode(A0, OUTPUT);
 
+
 }
 
 void loop() {
-    
+   analogWrite(A0, 0);
   // Check for packet data from flight cpu
   int packetSize = Udp.parsePacket();
   if (packetSize) {
-      digitalWrite(A0, HIGH);
+      analogWrite(A0, 150);
       IPAddress remote = Udp.remoteIP();
       int len = Udp.read(packetBuffer, 255);
       if (len > 0) {
