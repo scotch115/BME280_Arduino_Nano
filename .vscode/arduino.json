@@ -2,5 +2,5 @@
     "board": "adafruit:avr:feather32u4",
     "programmer": "AVR ISP",
     "sketch": "src/barometer/barometer.ino",
-    "port": "/dev/cu.usbmodem143201"
+    "port": "/dev/cu.usbmodem1433101"
 }

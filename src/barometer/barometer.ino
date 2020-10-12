@@ -58,15 +58,16 @@ void setup() {
   int j = 0;
   int sizeOf = 100;
   int offset = 0;
-  String bStr = "BME 280 Detected.";
-  String lStr = "LIS3DH Detected.";
-  String aStr = "AirLift Featherwing Detected.";
-  String sStr = "Startup process completed, beginning sensor scans.";
-  String cPStr = "Flight Computer has continuity on tested A0";
-  String cFStr = "Flight Computer does not have continuity on A0";
-  String fStr = "Flight CPU ready";
-  String dataStr = "Flight CPU sent data to server";
-  String chStr = "Deploy chutes!";
+
+   String bStr = "{""\"status\":""\"BME 280 Detected.\"""}";
+   String lStr = "{""\"status\":""\"LIS3DH Detected.\"""}";
+   String aStr = "{""\"status\":""\"AirLift Featherwing Detected.\"""}";
+   String sStr = "{""\"status\":""\"Startup process complete.\"""}";
+   String cPStr = "{""\"status\":""\"Flight Computer has continuity on tested A0\"""}";
+   String cFStr = "{""\"status\":""\"Flight Computer does not have continuity on A0\"""}";
+   String fStr = "{""\"status\":""\"Flight CPU ready\"""}";
+   String dataStr = "{""\"status\":""\"Flight CPU sent data to server\"""}";
+   String chStr = "{""\"status\":""\"Deploy chutes!\"""}";
   
   while((j<sizeOf))
   {
