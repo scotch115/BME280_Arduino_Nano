@@ -73,33 +73,34 @@ void setup() {
   Udp.endPacket();  
   pinMode(A0, OUTPUT);
 
-
+  
 }
 
 void loop() {
-   analogWrite(A0, 0);
   // Check for packet data from flight cpu
   int packetSize = Udp.parsePacket();
   if (packetSize) {
       analogWrite(A0, 150);
       IPAddress remote = Udp.remoteIP();
-      int len = Udp.read(packetBuffer, 255);
+      int len = Udp.read(packetBuffer, 150);
       if (len > 0) {
           packetBuffer[len] = 0;
       }
       Serial.print("Received: ");
       Serial.println(packetBuffer);
 
-      // If data is received from 
-      pinMode(A0, OUTPUT);
-      pinMode(A0, INPUT_PULLUP);
-
+      // If data is received 
       Udp.beginPacket(Udp.remoteIP(), Udp.remotePort());
       Udp.write(packetBuffer);
       Udp.endPacket();
   }
 
-  delay(2000);
+  delay(1000);
+  analogWrite(A0, 0);
+  delay(1000);
+
+  // Flight computer startup has completed at this point, the next step would be to begin the launch sequence, 
+  // and ignite the motor using analogWrite(). -- Find more features to add to ground control
   
 }
 

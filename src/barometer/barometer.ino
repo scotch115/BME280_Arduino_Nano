@@ -37,12 +37,15 @@ IPAddress groundIp(192, 168, 1, 153);
 unsigned int localPort = 2390;      // local port to listen on
 WiFiUDP Udp;
 
+int altitude, lastAlt, apogee;
+
 char networkName[] = NETWORK;
 char password[] = PASSWORD;
 
 char packetBuffer[100];
 char wait[80] = "Flight Computer waiting to establish connection to Ground Control";
 char flightData[100];
+char chutes[80];
 
 void setup() {
   Serial.begin(9600);
@@ -51,8 +54,7 @@ void setup() {
   unsigned status;
   unsigned lStatus;
   unsigned wStatus;
-  unsigned cpuReady;
-  char bmeDetected[100], lisDetected[100], airDetected[100], startupCompleted[100], continuityPass[80], continuityFail[80], flightCPU[100];
+  char bmeDetected[100], lisDetected[100], airDetected[100], startupCompleted[120], continuityPass[100], continuityFail[100], flightCPU[100];
   int j = 0;
   int sizeOf = 100;
   int offset = 0;
@@ -64,6 +66,7 @@ void setup() {
   String cFStr = "Flight Computer does not have continuity on A0";
   String fStr = "Flight CPU ready";
   String dataStr = "Flight CPU sent data to server";
+  String chStr = "Deploy chutes!";
   
   while((j<sizeOf))
   {
@@ -73,8 +76,9 @@ void setup() {
      startupCompleted[j+offset]=sStr[j];
      continuityPass[j+offset]=cPStr[j];
      continuityFail[j+offset]=cFStr[j];
-    flightCPU[j+offset]=fStr[j];
-    flightData[j+offset]=dataStr[j];
+     flightCPU[j+offset]=fStr[j];
+     flightData[j+offset]=dataStr[j];
+     chutes[j+offset]=chStr[j];
      
      j++;
   }
@@ -104,7 +108,6 @@ void setup() {
 //  // You can also pass in a Wire library object like &Wire2
 //  // status = bme.begin(0x76, &Wire2)
   if (!status) {
-    cpuReady == false;
     Serial.println(F("Could not find a valid BME280 sensor, check wiring, address, sensor ID!"));
     while (1) delay(10);
   } else {
@@ -123,7 +126,6 @@ void setup() {
 
   if (!lStatus) {   // change this to 0x19 for alternative i2c address
     Serial.println(F("Couldnt start"));
-    cpuReady == false;
     while (1) yield();
   }
 
@@ -142,17 +144,8 @@ void setup() {
   analogWrite(A0, 150);
   
   int continuityVal = analogRead(A0);
-  if (continuityVal == 150) {
-    Udp.beginPacket(remoteIp, 2931);
-    Udp.write(continuityPass);
-    Udp.endPacket();
-  } else {
-    Udp.beginPacket(remoteIp, 2931);
-    Udp.write(continuityFail);
-    Udp.endPacket();
-  }
 
-  cpuReady == true;
+  delay(200);
   
   // Attempting to send confirmation to remote server to show startup has completed, but it's not loading the rest of the code when I do that... hmmmm
   Udp.beginPacket(remoteIp, 2931);
@@ -165,13 +158,37 @@ void setup() {
   Udp.endPacket();
   Serial.println("Sent flightData to ground control");
   delay(2000);
-
+  analogWrite(A0, 150);
+  
 }
 
 void loop() {
   lis.read();
   sensors_event_t event;
   lis.getEvent(&event);
+
+  // Check rocket has not surpassed apogee
+  altitude = bme.readAltitude(SEALEVELPRESSURE_HPA);
+  if (altitude - lastAlt  <= -1) {
+    delay(150);
+    altitude = bme.readAltitude(SEALEVELPRESSURE_HPA);
+    if (altitude - lastAlt <= -2) {
+      delay(150);
+      altitude = bme.readAltitude(SEALEVELPRESSURE_HPA);
+      if (altitude - lastAlt <= -3) {
+        apogee = lastAlt - 3;
+        Udp.beginPacket(remoteIp, 2931);
+        Udp.write(chutes); // THIS WORKS!! 
+        Udp.endPacket();
+      } else {
+      lastAlt = altitude;
+      }
+    } else {
+      lastAlt = altitude;
+    } 
+  } else {
+    lastAlt = altitude;
+  }
 
   String ReplyBuffer = "{""\"Temperature\":";
   ReplyBuffer += bme.readTemperature();
@@ -217,6 +234,7 @@ void loop() {
   Udp.write(flightData);
   Udp.endPacket();
   delay(100);
+
 }
 
 void printWifiStatus() {
