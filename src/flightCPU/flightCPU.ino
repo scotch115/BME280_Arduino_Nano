@@ -45,7 +45,7 @@ char password[] = PASSWORD;
 char packetBuffer[100];
 char wait[80] = "Flight Computer waiting to establish connection to Ground Control";
 char flightData[100];
-char chutes[80];
+char chutes[80] = "{""\"status\":""\"Deploy chutes!\"""}";
 
 void setup() {
   Serial.begin(9600);
@@ -63,10 +63,7 @@ void setup() {
    String lStr = "{""\"status\":""\"LIS3DH Detected.\"""}";
    String aStr = "{""\"status\":""\"AirLift Featherwing Detected.\"""}";
    String sStr = "{""\"status\":""\"Startup process complete.\"""}";
-   String cPStr = "{""\"status\":""\"Flight Computer has continuity on tested A0\"""}";
-   String cFStr = "{""\"status\":""\"Flight Computer does not have continuity on A0\"""}";
    String fStr = "{""\"status\":""\"Flight CPU ready\"""}";
-   String dataStr = "{""\"status\":""\"Flight CPU sent data to server\"""}";
    String chStr = "{""\"status\":""\"Deploy chutes!\"""}";
   
   while((j<sizeOf))
@@ -75,11 +72,8 @@ void setup() {
      lisDetected[j+offset]=lStr[j];
      airDetected[j+offset]=aStr[j];
      startupCompleted[j+offset]=sStr[j];
-     continuityPass[j+offset]=cPStr[j];
-     continuityFail[j+offset]=cFStr[j];
      flightCPU[j+offset]=fStr[j];
-     flightData[j+offset]=dataStr[j];
-     chutes[j+offset]=chStr[j];
+//     chutes[j+offset]=chStr[j];
      
      j++;
   }
@@ -143,10 +137,7 @@ void setup() {
 
   pinMode(A0, OUTPUT);
   analogWrite(A0, 150);
-  
-  int continuityVal = analogRead(A0);
-
-  delay(200);
+   delay(200);
   
   // Attempting to send confirmation to remote server to show startup has completed, but it's not loading the rest of the code when I do that... hmmmm
   Udp.beginPacket(remoteIp, 2931);
@@ -157,7 +148,7 @@ void setup() {
   Udp.beginPacket(groundIp, 8888);
   Udp.write(flightCPU);
   Udp.endPacket();
-  Serial.println("Sent flightData to ground control");
+  Serial.println("Sent flight data to ground control");
   delay(2000);
   analogWrite(A0, 150);
   
@@ -181,6 +172,19 @@ void loop() {
         Udp.beginPacket(remoteIp, 2931);
         Udp.write(chutes); // THIS WORKS!! 
         Udp.endPacket();
+        delay(100);
+        Udp.beginPacket(groundIp, 8888);
+        Udp.write(chutes);
+        Udp.endPacket();
+        // BEGIN DESCENT // 
+        analogWrite(A0,150);
+        delay(500);
+        analogWrite(A0, 0);
+        delay(500);
+        analogWrite(A0,150);
+        delay(500);
+        analogWrite(A0, 0);
+        delay(500);
       } else {
       lastAlt = altitude;
       }
@@ -214,6 +218,7 @@ void loop() {
   ReplyBuffer += "}";
   
   char reply[300];
+  String dataStr = "{""\"status\":""\"Flight CPU sent data to server\"""}";
   int i = 0;
   int sizeOf = 180;
   int offset = 0;
@@ -221,6 +226,7 @@ void loop() {
   while((i<sizeOf))
   {
      reply[i+offset]=ReplyBuffer[i];
+     flightData[i+offset]=dataStr[i];
   
      i++;
   }
@@ -235,7 +241,6 @@ void loop() {
   Udp.write(flightData);
   Udp.endPacket();
   delay(100);
-
 }
 
 void printWifiStatus() {

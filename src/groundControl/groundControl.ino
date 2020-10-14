@@ -19,14 +19,19 @@ unsigned long delayTime = 200;
 IPAddress remoteIp(192, 168, 1, 65);
 unsigned int localPort = 8888;      // local port to listen on
 WiFiUDP Udp;
+boolean launchStatus;
 
-// unsigned int remotePort = 2930;
+//unsigned int remotePort = 2930;
 
 char packetBuffer[255];
 char ReplyBuffer[255];
 
+char countdown5[10], countdown4[10], countdown3[10], countdown2[10], countdown1[10];
+
 char networkName[] = NETWORK;
 char password[] = PASSWORD;
+
+char launch[100], liftoff[100];
 
 
 void setup() {
@@ -37,28 +42,34 @@ void setup() {
   unsigned status;
   unsigned wStatus;
 
+  launchStatus = false;
+  
   char groundControlDetected[100], flightCPU[100];
   int j = 0;
   int sizeOf = 100;
   int offset = 0;
-  String gStr = "Ground Control Detected.";
-  String reply = "Connection established, vehicle should be prepped for launch.";
-  
-  while((j<sizeOf))
+  String gStr = "{""\"status\":""\"Ground Control Detected.\"""}";
+  String reply = "{""\"status\":""\"Connection established, vehicle will launch.\"""}";
+  String go4launch = "{""\"status\":""\"Launch initiated.\"""}";
+  String launchComplete = "{""\"status\":""\"Liftoff!\"""}";
+
+  while ((j < sizeOf))
   {
-     groundControlDetected[j+offset]=gStr[j];      
-     ReplyBuffer[j+offset]=reply[j];
-     j++;
+    groundControlDetected[j + offset] = gStr[j];
+    ReplyBuffer[j + offset] = reply[j];
+    launch[j + offset] = go4launch[j];
+    liftoff[j + offset] = launchComplete[j];
+    j++;
   }
 
-  WiFi.setPins(SPIWIFI_SS, SPIWIFI_ACK, ESP32_RESETN, ESP32_GPIO0, &SPIWIFI);  
+  WiFi.setPins(SPIWIFI_SS, SPIWIFI_ACK, ESP32_RESETN, ESP32_GPIO0, &SPIWIFI);
   while (WiFi.status() == WL_NO_MODULE) {
     Serial.println(F("AirLift Module not detected!"));
     delay(1000);
   }
 
   Serial.println(F("AirLift Module detected."));
-  
+
   Serial.println(F("Attempting to connect to WiFi "));
   do {
     wStatus = WiFi.begin(networkName, password);
@@ -70,38 +81,124 @@ void setup() {
 
   Udp.beginPacket(remoteIp, 2931);
   Udp.write(groundControlDetected);
-  Udp.endPacket();  
+  Udp.endPacket();
   pinMode(A0, OUTPUT);
 
-  
+
 }
 
 void loop() {
+  analogWrite(A0, 0);
   // Check for packet data from flight cpu
   int packetSize = Udp.parsePacket();
   if (packetSize) {
-      analogWrite(A0, 150);
-      IPAddress remote = Udp.remoteIP();
-      int len = Udp.read(packetBuffer, 150);
-      if (len > 0) {
-          packetBuffer[len] = 0;
-      }
-      Serial.print("Received: ");
-      Serial.println(packetBuffer);
+    IPAddress remote = Udp.remoteIP();
+    int len = Udp.read(packetBuffer, 255);
+    if (len > 0) {
+      packetBuffer[len] = 0;
+    }
+    Serial.print("Received: ");
+    Serial.println(packetBuffer);
 
-      // If data is received 
-      Udp.beginPacket(Udp.remoteIP(), Udp.remotePort());
-      Udp.write(packetBuffer);
-      Udp.endPacket();
+    analogWrite(A0, 150);
+
+    if (launchStatus == false) {
+      beginLaunch();
+    }
+
+      /* In theory, I would want an indication on the ground that the chutes successfully deployed*/
+//    if (packetBuffer == '{"status":"Deploy chutes!"}') {
+//      // Confirmation of deployed chutes
+//      Serial.println("CONFIRM");
+//      analogWrite(A0, 0);
+//      delay(500);
+//      analogWrite(A0, 150);
+//      delay(500);
+//    }
   }
 
+  delay(500);
+
+  // Flight computer startup has completed at this point, the next step would be to begin the launch sequence,
+  // and ignite the motor using analogWrite(). -- Find more features to add to ground control
+
+}
+
+void beginLaunch() {
+  launchStatus = true;
+  Udp.beginPacket(remoteIp, 2931);
+  Udp.write(launch);
+  Udp.endPacket();
+  delay(500);
+
+  analogWrite(A0, 150);
   delay(1000);
   analogWrite(A0, 0);
+  delay(500);
+  analogWrite(A0, 150);
   delay(1000);
+  analogWrite(A0, 0);
+  delay(500);
+  analogWrite(A0, 150);
+  delay(1000);
+  analogWrite(A0, 0);
+  delay(500);
+  analogWrite(A0, 150);
+  delay(1000);
+  analogWrite(A0, 0);
+  delay(500);
+  analogWrite(A0, 150);
+  delay(1000);
+  analogWrite(A0, 0);
+  delay(500);
+  analogWrite(A0, 150);
+  delay(1000);
+  analogWrite(A0, 0);
+  delay(500);
+  analogWrite(A0, 150);
+  delay(1000);
+  analogWrite(A0, 0);
+  delay(500);
+  analogWrite(A0, 150);
+  delay(1000);
+  analogWrite(A0, 0);
+  delay(500);
+  analogWrite(A0, 150);
+  delay(1000);
+  analogWrite(A0, 0);
+  delay(500);
+  analogWrite(A0, 150);
+  delay(1000);
+  analogWrite(A0, 0);
+  delay(500);
+  analogWrite(A0, 150);
+  delay(1000);
+  analogWrite(A0, 0);
+  delay(500);
+  analogWrite(A0, 150);
+  delay(1000);
+  analogWrite(A0, 0);
+  delay(500);
+  analogWrite(A0, 150);
+  delay(1000);
+  analogWrite(A0, 0);
+  delay(500);
+  analogWrite(A0, 150);
+  delay(1000);
+  analogWrite(A0, 0);
+  delay(500);
+  analogWrite(A0, 150);
+  delay(1000);
+  analogWrite(A0, 0);
+  delay(500);
 
-  // Flight computer startup has completed at this point, the next step would be to begin the launch sequence, 
-  // and ignite the motor using analogWrite(). -- Find more features to add to ground control
-  
+
+  Udp.beginPacket(remoteIp, 2931);
+  Udp.write(liftoff);
+  Udp.endPacket();
+  delay(500);
+
+
 }
 
 void printWifiStatus() {
