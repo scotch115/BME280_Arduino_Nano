@@ -28,7 +28,7 @@ The MK II PCB was carefully redesigned to improve upon the Mk I's failures by ut
 <img src="Images/Mk_II_B.png" width="60%" />
 
 
-# Phase II 
+# Phase II & III
 ## Flight Computer
 This is the assembled flight computer with all sensors, now compatible with Li-Poly support! Ground Control system is functional and connects to the flight computer and the node-red server
 
@@ -41,6 +41,6 @@ The AirLift Wi-Fi Co-Processor on both the Adalogger and Metro are able to succe
 <img src="Images/nodeRedDash.png" width="60%" />
 <img src="Images/nodeRedGraph.png" width="60%" />
 
-# Phase III
+# Phase IV
 ## Rocket Design and Construction
 > Currently doing research and teaching myself rocket mechanics to design and build a stable, efficient rocket. Updates coming soon.
