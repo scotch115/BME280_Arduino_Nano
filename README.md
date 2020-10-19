@@ -47,5 +47,5 @@ The AirLift Wi-Fi Co-Processor on both the Adalogger and Metro are able to succe
 <img src="Images/nodeRedGraph.png" width="60%" />
 
 # Phase IV
-## Rocket Design and Construction
+## Rocket Design and Construction 
 > Currently doing research and teaching myself rocket mechanics to design and build a stable, efficient rocket. Updates coming soon.
