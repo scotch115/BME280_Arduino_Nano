@@ -44,8 +44,14 @@ char password[] = PASSWORD;
 
 char packetBuffer[100];
 char wait[80] = "Flight Computer waiting to establish connection to Ground Control";
-char flightData[100];
+char flightData[100] = "{""\"status\":""\"Flight CPU sent data to server\"""}";
 char chutes[80] = "{""\"status\":""\"Deploy chutes!\"""}";
+char liftoff[80] = "{""\"status\":""\"Liftoff!\"""}";
+char bmeDetected[100] = "{""\"status\":""\"BME 280 Detected.\"""}";
+char lisDetected[100] = "{""\"status\":""\"LIS3DH Detected.\"""}";
+char airDetected[100] = "{""\"status\":""\"AirLift Featherwing Detected.\"""}";
+char startupCompleted[100] = "{""\"status\":""\"Startup process complete.\"""}";
+char flightCPU[100] = "{""\"status\":""\"Flight CPU ready\"""}";
 
 void setup() {
   Serial.begin(9600);
@@ -54,29 +60,6 @@ void setup() {
   unsigned status;
   unsigned lStatus;
   unsigned wStatus;
-  char bmeDetected[100], lisDetected[100], airDetected[100], startupCompleted[120], continuityPass[100], continuityFail[100], flightCPU[100];
-  int j = 0;
-  int sizeOf = 100;
-  int offset = 0;
-
-   String bStr = "{""\"status\":""\"BME 280 Detected.\"""}";
-   String lStr = "{""\"status\":""\"LIS3DH Detected.\"""}";
-   String aStr = "{""\"status\":""\"AirLift Featherwing Detected.\"""}";
-   String sStr = "{""\"status\":""\"Startup process complete.\"""}";
-   String fStr = "{""\"status\":""\"Flight CPU ready\"""}";
-   String chStr = "{""\"status\":""\"Deploy chutes!\"""}";
-  
-  while((j<sizeOf))
-  {
-     bmeDetected[j+offset]=bStr[j];
-     lisDetected[j+offset]=lStr[j];
-     airDetected[j+offset]=aStr[j];
-     startupCompleted[j+offset]=sStr[j];
-     flightCPU[j+offset]=fStr[j];
-//     chutes[j+offset]=chStr[j];
-     
-     j++;
-  }
 
   WiFi.setPins(SPIWIFI_SS, SPIWIFI_ACK, ESP32_RESETN, ESP32_GPIO0, &SPIWIFI);  
   while (WiFi.status() == WL_NO_MODULE) {
@@ -195,6 +178,41 @@ void loop() {
     lastAlt = altitude;
   }
 
+  if (altitude - lastAlt  >= 1) {
+    delay(150);
+    altitude = bme.readAltitude(SEALEVELPRESSURE_HPA);
+    if (altitude - lastAlt >= 2) {
+      delay(150);
+      altitude = bme.readAltitude(SEALEVELPRESSURE_HPA);
+      if (altitude - lastAlt >= 3) {
+        apogee = lastAlt + 3;
+        Udp.beginPacket(remoteIp, 2931);
+        Udp.write(liftoff); 
+        Udp.endPacket();
+        delay(100);
+        Udp.beginPacket(groundIp, 8888);
+        Udp.write(liftoff);
+        Udp.endPacket();
+        // BEGIN ASCENT // 
+        analogWrite(A0,150);
+        delay(500);
+        analogWrite(A0, 0);
+        delay(500);
+        analogWrite(A0,150);
+        delay(500);
+        analogWrite(A0, 0);
+        delay(500);
+      } else {
+      lastAlt = altitude;
+      }
+    } else {
+      lastAlt = altitude;
+    } 
+  } else {
+    lastAlt = altitude;
+  }
+
+  
   String ReplyBuffer = "{""\"Temperature\":";
   ReplyBuffer += bme.readTemperature();
   ReplyBuffer += ",""\"Pressure\":";
@@ -218,16 +236,13 @@ void loop() {
   ReplyBuffer += "}";
   
   char reply[300];
-  String dataStr = "{""\"status\":""\"Flight CPU sent data to server\"""}";
   int i = 0;
   int sizeOf = 180;
   int offset = 0;
   
   while((i<sizeOf))
   {
-     reply[i+offset]=ReplyBuffer[i];
-     flightData[i+offset]=dataStr[i];
-  
+     reply[i+offset]=ReplyBuffer[i];  
      i++;
   }
   

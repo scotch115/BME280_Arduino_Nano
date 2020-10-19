@@ -31,7 +31,7 @@ char countdown5[10], countdown4[10], countdown3[10], countdown2[10], countdown1[
 char networkName[] = NETWORK;
 char password[] = PASSWORD;
 
-char launch[100], liftoff[100];
+char launch[100], ignition[100];
 
 
 void setup() {
@@ -51,14 +51,14 @@ void setup() {
   String gStr = "{""\"status\":""\"Ground Control Detected.\"""}";
   String reply = "{""\"status\":""\"Connection established, vehicle will launch.\"""}";
   String go4launch = "{""\"status\":""\"Launch initiated.\"""}";
-  String launchComplete = "{""\"status\":""\"Liftoff!\"""}";
+  String launchComplete = "{""\"status\":""\"Ignition\"""}";
 
   while ((j < sizeOf))
   {
     groundControlDetected[j + offset] = gStr[j];
     ReplyBuffer[j + offset] = reply[j];
     launch[j + offset] = go4launch[j];
-    liftoff[j + offset] = launchComplete[j];
+    ignition[j + offset] = launchComplete[j];
     j++;
   }
 
@@ -194,7 +194,7 @@ void beginLaunch() {
 
 
   Udp.beginPacket(remoteIp, 2931);
-  Udp.write(liftoff);
+  Udp.write(ignition);
   Udp.endPacket();
   delay(500);
 
