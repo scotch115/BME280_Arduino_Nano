@@ -30,7 +30,7 @@ The MK II PCB was carefully redesigned to improve upon the Mk I's failures by ut
 ## Update:
 Custom PCB worked after modification of grounding system, for next PCB design will use a single grounding pin instead of seven which were ultimately soldered together. 
 
-<img src="Images/PCB-test.png" width="60%" />
+<img src="Images/PCB-test.PNG" width="60%" />
 
 
 # Phase II & III
