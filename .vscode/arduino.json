@@ -1,6 +1,6 @@
 {
-    "board": "adafruit:avr:feather32u4",
-    "programmer": "AVR ISP",
-    "sketch": "src/barometer/barometer.ino",
-    "port": "/dev/cu.usbmodem1433101"
+    "board": "adafruit:avr:metro",
+    "programmer": "Arduino as ISP",
+    "sketch": "src/groundControl/groundControl.ino",
+    "port": "/dev/cu.usbserial-01D95FCC"
 }

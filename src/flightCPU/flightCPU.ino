@@ -9,6 +9,8 @@
 #include <WiFiUdp.h>
 #include "keys.h"
 
+// ------------ Globals
+
 #define LIS3DH_CLK 10
 #define LIS3DH_MISO 9
 #define LIS3DH_MOSI 6
@@ -52,6 +54,8 @@ char lisDetected[100] = "{""\"status\":""\"LIS3DH Detected.\"""}";
 char airDetected[100] = "{""\"status\":""\"AirLift Featherwing Detected.\"""}";
 char startupCompleted[100] = "{""\"status\":""\"Startup process complete.\"""}";
 char flightCPU[100] = "{""\"status\":""\"Flight CPU ready\"""}";
+
+// ------------ Setup
 
 void setup() {
   Serial.begin(9600);
@@ -137,6 +141,8 @@ void setup() {
   
 }
 
+// ------------ Main loop
+
 void loop() {
   lis.read();
   sensors_event_t event;
@@ -212,7 +218,7 @@ void loop() {
     lastAlt = altitude;
   }
 
-  
+  // ------------ Convert collected data to JSON
   String ReplyBuffer = "{""\"Temperature\":";
   ReplyBuffer += bme.readTemperature();
   ReplyBuffer += ",""\"Pressure\":";
@@ -257,6 +263,8 @@ void loop() {
   Udp.endPacket();
   delay(100);
 }
+
+// ------------ Wifi
 
 void printWifiStatus() {
   // print the SSID of the network you're attached to:

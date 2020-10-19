@@ -6,13 +6,13 @@
 #include <WiFiUdp.h>
 #include "keys.h"
 
+// ------------ Globals
 
 #define SPIWIFI       SPI  // The SPI port
 #define SPIWIFI_SS    10   // Chip select pin
 #define ESP32_RESETN   5   // Reset pin
 #define SPIWIFI_ACK    7   // a.k.a BUSY or READY pin
 #define ESP32_GPIO0    6
-
 
 unsigned long delayTime = 200;
 
@@ -33,6 +33,7 @@ char password[] = PASSWORD;
 
 char launch[100], ignition[100];
 
+// ------------ Setup
 
 void setup() {
   Serial.begin(9600);
@@ -87,6 +88,8 @@ void setup() {
 
 }
 
+// ------------ Main loop
+
 void loop() {
   analogWrite(A0, 0);
   // Check for packet data from flight cpu
@@ -123,6 +126,8 @@ void loop() {
   // and ignite the motor using analogWrite(). -- Find more features to add to ground control
 
 }
+
+// ------------ Tmp func to begin Launc Sequence
 
 void beginLaunch() {
   launchStatus = true;
@@ -201,6 +206,7 @@ void beginLaunch() {
 
 }
 
+// ------------ Wifi 
 void printWifiStatus() {
   // print the SSID of the network you're attached to:
   Serial.print(F("SSID: "));
