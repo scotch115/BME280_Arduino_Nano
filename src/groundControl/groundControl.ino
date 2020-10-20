@@ -28,6 +28,8 @@ char ReplyBuffer[255];
 
 char countdown5[10], countdown4[10], countdown3[10], countdown2[10], countdown1[10];
 
+//char startlaunch = "startlaunch";
+
 char networkName[] = NETWORK;
 char password[] = PASSWORD;
 
@@ -106,7 +108,10 @@ void loop() {
     analogWrite(A0, 150);
 
     if (launchStatus == false) {
-      beginLaunch();
+      if (strcmp(packetBuffer, "startlaunch") == 0) {
+        Serial.println("Received go for launch from server!");
+        beginLaunch();
+      }
     }
 
       /* In theory, I would want an indication on the ground that the chutes successfully deployed*/
@@ -120,14 +125,14 @@ void loop() {
 //    }
   }
 
-  delay(500);
+  delay(200);
 
   // Flight computer startup has completed at this point, the next step would be to begin the launch sequence,
   // and ignite the motor using analogWrite(). -- Find more features to add to ground control
 
 }
 
-// ------------ Tmp func to begin Launc Sequence
+// ------------ Tmp func to begin Launch Sequence
 
 void beginLaunch() {
   launchStatus = true;
@@ -197,6 +202,8 @@ void beginLaunch() {
   analogWrite(A0, 0);
   delay(500);
 
+  // -------------- Need to add relay to board and/or develop code to actually ignite motor after countdown
+        // -------------- Would also be cool to display countdown timer on LED Display, start with Serial
 
   Udp.beginPacket(remoteIp, 2931);
   Udp.write(ignition);
