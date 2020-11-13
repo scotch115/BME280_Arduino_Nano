@@ -30,8 +30,8 @@ char countdown5[10], countdown4[10], countdown3[10], countdown2[10], countdown1[
 
 //char startlaunch = "startlaunch";
 
-char networkName[] = NETWORK;
-char password[] = PASSWORD;
+char networkName[] = WIFINETWORK;
+char password[] = WIFIPASSWORD;
 
 char launch[100], ignition[100];
 
@@ -70,6 +70,7 @@ void setup() {
     Serial.println(F("AirLift Module not detected!"));
     delay(1000);
   }
+  printWifiStatus();
 
   Serial.println(F("AirLift Module detected."));
 
@@ -97,12 +98,11 @@ void loop() {
   // Check for packet data from flight cpu
   int packetSize = Udp.parsePacket();
   if (packetSize) {
-    IPAddress remote = Udp.remoteIP();
     int len = Udp.read(packetBuffer, 255);
     if (len > 0) {
       packetBuffer[len] = 0;
     }
-    Serial.print("Received: ");
+//    Serial.print("Received: ");
     Serial.println(packetBuffer);
 
     analogWrite(A0, 150);

@@ -41,10 +41,16 @@ This is the assembled flight computer with all sensors, now compatible with Li-P
 <img src="Images/flightCPU.PNG" width="60%" />
 <img src="Images/groundCtrl.PNG" width="60%" />
 
+> UPDATE 
+>
+> Main computer has been upgraded to the Adafruit Feather M0 with LoRa Radio @900Mhz, and IMU has been upgraded to MPU 6050 with 6 DOF (and gyroscope!). Code is being updated and overall communication framework is being transitioned to radio transmission.
+
 The AirLift Wi-Fi Co-Processor on both the Adalogger and Metro are able to successfully communicate with the Node-Red server, to send sensor data over UDP for collection and assimilation. The Node-Red dashboard is configured to not only build graphs in real-time, but also saves the data as it is received to a JSON file. 
 
 <img src="Images/nodeRedDash.png" width="60%" />
 <img src="Images/nodeRedGraph.png" width="60%" />
+
+
 
 # Phase IV
 ## Rocket Design and Construction 

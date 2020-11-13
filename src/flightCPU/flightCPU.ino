@@ -1,285 +1,298 @@
-#include <Wire.h>
+#include "Wire.h"
 #include <SPI.h>
 #include <Adafruit_Sensor.h>
 #include <Adafruit_BME280.h>
-#include <Adafruit_LIS3DH.h>
-#include <LiquidCrystal.h>
-//#include <SoftwareSerial.h>
+#include <Adafruit_MPU6050.h>
 #include <WiFiNINA.h>
 #include <WiFiUdp.h>
-#include "keys.h"
+//#include "keys.h"
+#include "I2Cdev.h"
+#include "MPU6050_6Axis_MotionApps20.h"
 
 // ------------ Globals
 
-#define LIS3DH_CLK 10
-#define LIS3DH_MISO 9
-#define LIS3DH_MOSI 6
-// Used for hardware & software SPI
-#define LIS3DH_CS 5
+MPU6050 mpu;
+#define OUTPUT_READABLE_YAWPITCHROLL
+#define INTERRUPT_PIN 6
 
-// software SPI
-Adafruit_LIS3DH lis = Adafruit_LIS3DH(LIS3DH_CS, LIS3DH_MOSI, LIS3DH_MISO, LIS3DH_CLK);
-
-#define SEALEVELPRESSURE_HPA (1016.3)
-
-#define SPIWIFI       SPI  // The SPI port
-#define SPIWIFI_SS    13   // Chip select pin
-#define ESP32_RESETN  12   // Reset pin
-#define SPIWIFI_ACK   11   // a.k.a BUSY or READY pin
-#define ESP32_GPIO0   -1
+#define SEALEVELPRESSURE_HPA (1022.6)
 
 Adafruit_BME280 bme; // I2C
 
-unsigned long delayTime;
-
-//LiquidCrystal lcd(7, 8, 9, 10, 11, 12);
-
-IPAddress remoteIp(192, 168, 1, 65);
-IPAddress groundIp(192, 168, 1, 153);
-unsigned int localPort = 2390;      // local port to listen on
-WiFiUDP Udp;
-
 int altitude, lastAlt, apogee;
 
-char networkName[] = NETWORK;
-char password[] = PASSWORD;
+unsigned int numTones = 6;
+unsigned int tones[] = {523, 587, 659, 739, 830, 880};
+////            upper    C    D    E    F#   G#   A
+
+boolean chutesFired = false;
+boolean landed = false;
 
 char packetBuffer[100];
-char wait[80] = "Flight Computer waiting to establish connection to Ground Control";
-char flightData[100] = "{""\"status\":""\"Flight CPU sent data to server\"""}";
-char chutes[80] = "{""\"status\":""\"Deploy chutes!\"""}";
-char liftoff[80] = "{""\"status\":""\"Liftoff!\"""}";
-char bmeDetected[100] = "{""\"status\":""\"BME 280 Detected.\"""}";
-char lisDetected[100] = "{""\"status\":""\"LIS3DH Detected.\"""}";
-char airDetected[100] = "{""\"status\":""\"AirLift Featherwing Detected.\"""}";
-char startupCompleted[100] = "{""\"status\":""\"Startup process complete.\"""}";
-char flightCPU[100] = "{""\"status\":""\"Flight CPU ready\"""}";
+char flightData[60] = "{""\"status\":""\"Flight CPU sent data to server\"""}";
+char chutes[50] = "{""\"status\":""\"Chutes Deployed!\"""}";
+char liftoff[50] = "{""\"status\":""\"Liftoff!\"""}";
+char bmeDetected[60] = "{""\"status\":""\"BME 280 Detected.\"""}";
+char imuDetected[60] = "{""\"status\":""\"MPU 6050 Detected.\"""}";
+char airDetected[70] = "{""\"status\":""\"AirLift Featherwing Detected.\"""}";
+char startupCompleted[60] = "{""\"status\":""\"Startup process complete.\"""}";
+char flightCPU[50] = "{""\"status\":""\"Flight CPU ready\"""}";
+char vehicleLanded[50] = "{""\"status\":""\"Touchdown!\"""}";
+
+
+
+// ------------------------ MPU control/status vars
+bool dmpReady = false;  // set true if DMP init was successful
+uint8_t mpuIntStatus;   // holds actual interrupt status byte from MPU
+uint8_t devStatus;      // return status after each device operation (0 = success, !0 = error)
+uint16_t packetSize;    // expected DMP packet size (default is 42 bytes)
+uint16_t fifoCount;     // count of all bytes currently in FIFO
+uint8_t fifoBuffer[64]; // FIFO storage buffer
+
+// ------------------------ orientation/motion vars
+Quaternion q;           // [w, x, y, z]         quaternion container
+VectorInt16 aa;         // [x, y, z]            accel sensor measurements
+VectorInt16 aaReal;     // [x, y, z]            gravity-free accel sensor measurements
+VectorInt16 aaWorld;    // [x, y, z]            world-frame accel sensor measurements
+VectorFloat gravity;    // [x, y, z]            gravity vector
+float euler[3];         // [psi, theta, phi]    Euler angle container
+float ypr[3];           // [yaw, pitch, roll]   yaw/pitch/roll container and gravity vector
+
+// ---------------------- IMU interruption detection
+volatile bool mpuInterrupt = false;     // indicates whether MPU interrupt pin has gone high
+void dmpDataReady() {
+    mpuInterrupt = true;
+}
 
 // ------------ Setup
 
 void setup() {
-  Serial.begin(9600);
+  // join I2C bus (I2Cdev library doesn't do this automatically)
+    #if I2CDEV_IMPLEMENTATION == I2CDEV_ARDUINO_WIRE
+        Wire.begin();
+        Wire.setClock(400000); // 400kHz I2C clock. Comment this line if having compilation difficulties
+    #elif I2CDEV_IMPLEMENTATION == I2CDEV_BUILTIN_FASTWIRE
+        Fastwire::setup(400, true);
+    #endif
+
+    
+  Serial.begin(115200);
+  for (unsigned int i = 0; i < numTones; i++)
+  {
+    tone(A1, tones[i]);
+    delay(50);
+  }
+  noTone(A1);
   delay(2000);  // time to get serial running
-
   unsigned status;
-  unsigned lStatus;
-  unsigned wStatus;
-
-  WiFi.setPins(SPIWIFI_SS, SPIWIFI_ACK, ESP32_RESETN, ESP32_GPIO0, &SPIWIFI);  
-  while (WiFi.status() == WL_NO_MODULE) {
-    delay(1000);
-  }
-  
-  Serial.println(F("Connecting to WiFi "));
-  do {
-    wStatus = WiFi.begin(networkName, password);
-    delay(100);
-  } while (wStatus != WL_CONNECTED);
-  printWifiStatus();
-  Udp.begin(localPort);
-
-  Udp.beginPacket(remoteIp, 2931);
-  if (wStatus) {
-    Udp.write(airDetected);
-  }
-  Udp.endPacket();
-  delay(2000);
+ 
 
   // default settings
   status = bme.begin();
 //  // You can also pass in a Wire library object like &Wire2
-//  // status = bme.begin(0x76, &Wire2)
+  // status = bme.begin(0x76, &Wire2)
   if (!status) {
-    Serial.println(F("Could not find a valid BME280 sensor, check wiring, address, sensor ID!"));
+    Serial.println("Could not find a valid BME280 sensor, check wiring, address, sensor ID!");
     while (1) delay(10);
   } else {
-    Udp.beginPacket(remoteIp, 2931);
     if (status) {
-      Udp.write(bmeDetected);
+      tone(A1, 523);
+      delay(50);
+      noTone(A1);
+      delay(1000);
     }
-    Udp.endPacket();
-    delay(2000);
   }
-
-  wStatus = WL_IDLE_STATUS;
-
-  delayTime = 1000;
-  lStatus = lis.begin(0x18);
-
-  if (!lStatus) {   // change this to 0x19 for alternative i2c address
-    Serial.println(F("Couldnt start"));
-    while (1) yield();
-  }
-
-  lis.setRange(LIS3DH_RANGE_4_G);   // 2, 4, 8 or 16 G!
-
-  lis.setDataRate(LIS3DH_DATARATE_50_HZ);
   
-  Udp.beginPacket(remoteIp, 2931);
-  if (lStatus) {
-    Udp.write(lisDetected);
-  }
-  Udp.endPacket();
-  delay(2000);
+  mpu.initialize();
+  pinMode(INTERRUPT_PIN, INPUT_PULLUP);
+  tone(A1, 523);
+  delay(50);
+  noTone(A1);
+  delay(1000);
 
-  pinMode(A0, OUTPUT);
-  analogWrite(A0, 150);
-   delay(200);
-  
-  // Attempting to send confirmation to remote server to show startup has completed, but it's not loading the rest of the code when I do that... hmmmm
-  Udp.beginPacket(remoteIp, 2931);
-  Udp.write(startupCompleted);
-  Udp.endPacket();
-  delay(2000);
+  devStatus = mpu.dmpInitialize();
 
-  Udp.beginPacket(groundIp, 8888);
-  Udp.write(flightCPU);
-  Udp.endPacket();
-  Serial.println("Sent flight data to ground control");
-  delay(2000);
+
+  // supply your own gyro offsets here, scaled for min sensitivity
+    mpu.setXGyroOffset(-1);
+    mpu.setYGyroOffset(0);
+    mpu.setZGyroOffset(-1);
+    mpu.setZAccelOffset(16381);
+
+  if (devStatus == 0) {
+        // Calibration Time: generate offsets and calibrate our MPU6050
+        mpu.CalibrateAccel(6);
+        mpu.CalibrateGyro(6);
+        mpu.PrintActiveOffsets();
+        // turn on the DMP, now that it's ready
+        Serial.println(F("Enabling DMP..."));
+        mpu.setDMPEnabled(true);
+
+        // enable Arduino interrupt detection
+        Serial.print(F("Enabling interrupt detection (Arduino external interrupt "));
+        Serial.print(digitalPinToInterrupt(INTERRUPT_PIN));
+        Serial.println(F(")..."));
+        attachInterrupt(digitalPinToInterrupt(INTERRUPT_PIN), dmpDataReady, RISING);
+        mpuIntStatus = mpu.getIntStatus();
+
+        // set our DMP Ready flag so the main loop() function knows it's okay to use it
+        Serial.println(F("DMP ready! Waiting for first interrupt..."));
+        dmpReady = true;
+
+        // get expected DMP packet size for later comparison
+        packetSize = mpu.dmpGetFIFOPacketSize();
+    } else {
+        // ERROR!
+        // 1 = initial memory load failed
+        // 2 = DMP configuration updates failed
+        // (if it's going to break, usually the code will be 1)
+        Serial.print(F("DMP Initialization failed (code "));
+        Serial.print(devStatus);
+        Serial.println(F(")"));
+    }
+
   analogWrite(A0, 150);
+  delay(200);
+
+  Serial.println("");
+
+  tone(A1, 1760);
+  delay(500);
+  noTone(A1);
+
+//  delay(1000);
+//  analogWrite(A0, 150);
+
+// Relay
+//  pinMode(A2, OUTPUT);
+//  digitalWrite(A2, LOW);
   
 }
 
 // ------------ Main loop
 
 void loop() {
-  lis.read();
-  sensors_event_t event;
-  lis.getEvent(&event);
-
-  // Check rocket has not surpassed apogee
+  if (!dmpReady) return;
+  if (mpu.dmpGetCurrentFIFOPacket(fifoBuffer)) { // Get the Latest packet 
+      mpu.dmpGetQuaternion(&q, fifoBuffer);
+      mpu.dmpGetGravity(&gravity, &q);
+      mpu.dmpGetYawPitchRoll(ypr, &q, &gravity);
+      mpu.dmpGetQuaternion(&q, fifoBuffer);
+      mpu.dmpGetAccel(&aa, fifoBuffer);
+      mpu.dmpGetGravity(&gravity, &q);
+      mpu.dmpGetLinearAccel(&aaReal, &aa, &gravity);
+  }
+  
+  // Check rocket has not surpassed apogee 
   altitude = bme.readAltitude(SEALEVELPRESSURE_HPA);
-  if (altitude - lastAlt  <= -1) {
-    delay(150);
+  if (altitude - lastAlt <= -1) {
+    delay(100);
     altitude = bme.readAltitude(SEALEVELPRESSURE_HPA);
     if (altitude - lastAlt <= -2) {
-      delay(150);
+      delay(100);
       altitude = bme.readAltitude(SEALEVELPRESSURE_HPA);
       if (altitude - lastAlt <= -3) {
         apogee = lastAlt - 3;
-        Udp.beginPacket(remoteIp, 2931);
-        Udp.write(chutes); // THIS WORKS!! 
-        Udp.endPacket();
-        delay(100);
-        Udp.beginPacket(groundIp, 8888);
-        Udp.write(chutes);
-        Udp.endPacket();
-        // BEGIN DESCENT // 
-        analogWrite(A0,150);
-        delay(500);
-        analogWrite(A0, 0);
-        delay(500);
-        analogWrite(A0,150);
-        delay(500);
-        analogWrite(A0, 0);
-        delay(500);
+        delay(150);
+        deploy();
       } else {
       lastAlt = altitude;
       }
     } else {
       lastAlt = altitude;
-    } 
-  } else {
+      } 
+   } else {
     lastAlt = altitude;
-  }
+   }
 
-  if (altitude - lastAlt  >= 1) {
-    delay(150);
-    altitude = bme.readAltitude(SEALEVELPRESSURE_HPA);
-    if (altitude - lastAlt >= 2) {
-      delay(150);
-      altitude = bme.readAltitude(SEALEVELPRESSURE_HPA);
-      if (altitude - lastAlt >= 3) {
-        apogee = lastAlt + 3;
-        Udp.beginPacket(remoteIp, 2931);
-        Udp.write(liftoff); 
-        Udp.endPacket();
+
+   if (chutesFired == true) {
+    // BEGIN DESCENT // 
+        analogWrite(A0,150);
         delay(100);
-        Udp.beginPacket(groundIp, 8888);
-        Udp.write(liftoff);
-        Udp.endPacket();
-        // BEGIN ASCENT // 
-        analogWrite(A0,150);
-        delay(500);
         analogWrite(A0, 0);
-        delay(500);
+        delay(100);
         analogWrite(A0,150);
-        delay(500);
+        delay(100);
         analogWrite(A0, 0);
-        delay(500);
-      } else {
-      lastAlt = altitude;
-      }
-    } else {
-      lastAlt = altitude;
-    } 
-  } else {
-    lastAlt = altitude;
-  }
+        delay(100);
+        touchdown();
+   }
+  
 
   // ------------ Convert collected data to JSON
-  String ReplyBuffer = "{""\"Temperature\":";
-  ReplyBuffer += bme.readTemperature();
-  ReplyBuffer += ",""\"Pressure\":";
-  ReplyBuffer += (bme.readPressure() / 100.0F);
-  ReplyBuffer += ",""\"Altitude\":";
-  ReplyBuffer += bme.readAltitude(SEALEVELPRESSURE_HPA);
-  ReplyBuffer += ",""\"Humidity\":";
-  ReplyBuffer += bme.readHumidity();
-  ReplyBuffer += ",""\"X\":";
-  ReplyBuffer += lis.x;
-  ReplyBuffer += ",""\"Y\":";
-  ReplyBuffer += lis.y;
-  ReplyBuffer += ",""\"Z\":";
-  ReplyBuffer += lis.z;
-  ReplyBuffer += ",""\"∆X\":";
-  ReplyBuffer += event.acceleration.x;
-  ReplyBuffer += ",""\"∆Y\":";
-  ReplyBuffer += event.acceleration.y;
-  ReplyBuffer += ",""\"∆Z\":";
-  ReplyBuffer += event.acceleration.z;
-  ReplyBuffer += "}";
+  String Payload = "{""\"Temperature\":";
+  Payload += bme.readTemperature();
+  Payload += ",""\"Pressure\":";
+  Payload += (bme.readPressure() / 100.0F);
+  Payload += ",""\"Altitude\":";
+  Payload += bme.readAltitude(SEALEVELPRESSURE_HPA);
+  Payload += ",""\"Humidity\":";
+  Payload += bme.readHumidity();
+  Payload += ",""\"Yaw\":";
+  Payload += ypr[0] * 180/M_PI;
+  Payload += ",""\"Pitch\":";
+  Payload += ypr[1] * 180/M_PI;
+  Payload += ",""\"Roll\":";
+  Payload += ypr[2] * 180/M_PI;
+  Payload += ",""\"X\":";
+  Payload += aaReal.x;
+  Payload += ",""\"Y\":";
+  Payload += aaReal.y;
+  Payload += ",""\"Z\":";
+  Payload += aaReal.z;
+  Payload += "}";
   
-  char reply[300];
+  char packet[200];
   int i = 0;
-  int sizeOf = 180;
+  int sizeOf = 200;
   int offset = 0;
   
   while((i<sizeOf))
   {
-     reply[i+offset]=ReplyBuffer[i];  
+     packet[i]=Payload[i];  
      i++;
   }
   
-  Udp.beginPacket(remoteIp, 2931);
-  Udp.write(reply);
-  Udp.endPacket();
-  Serial.println(reply);
-  delay(100);
+//  Udp.beginPacket(remoteIp, 2931);
+//  Udp.write(packet);
+//  Udp.endPacket();
+  Serial.println(packet);
+//  delay(100);
   
-  Udp.beginPacket(groundIp, 8888);
-  Udp.write(flightData);
-  Udp.endPacket();
+//  Udp.beginPacket(groundIp, 8888);
+//  Udp.write(flightData);
+//  Udp.endPacket();
   delay(100);
 }
 
-// ------------ Wifi
 
-void printWifiStatus() {
-  // print the SSID of the network you're attached to:
-  Serial.print(F("SSID: "));
-  Serial.println(WiFi.SSID());
+void deploy() {
+  chutesFired = true;
+  // Fire relay
+  digitalWrite(A2, HIGH);
+  delay(1000);
+  digitalWrite(A2, LOW);
+  delay(100);
+}
 
-  // print your board's IP address:
-  IPAddress ip = WiFi.localIP();
-  Serial.print(F("IP Address: "));
-  Serial.println(ip);
-
-  // print the received signal strength:
-  long rssi = WiFi.RSSI();
-  Serial.print(F("signal strength:"));
-  Serial.print(rssi);
-  Serial.println(F(" dBm"));
-
+void touchdown() {
+  if (altitude - lastAlt == 0) {
+    delay(100);
+    altitude = bme.readAltitude(SEALEVELPRESSURE_HPA);
+    if (altitude - lastAlt == 0) {
+      delay(100);
+      altitude = bme.readAltitude(SEALEVELPRESSURE_HPA);
+      if (altitude - lastAlt == 0) {
+        landed = true;
+        delay(150);
+      } else {
+        lastAlt = altitude;
+      }
+    } else {
+      lastAlt = altitude;
+    }
+   } else {
+    lastAlt = altitude;
+   }
 }

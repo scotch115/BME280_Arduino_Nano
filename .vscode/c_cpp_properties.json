@@ -3,7 +3,8 @@
         {
             "name": "Mac",
             "includePath": [
-                "/Users/jordangamache/Library/Arduino15/packages/adafruit/hardware/avr/1.4.13/**"
+                "/Users/jordangamache/Library/Arduino15/packages/adafruit/hardware/avr/1.4.13/**",
+                "/Users/jordangamache/Library/Arduino15/packages/adafruit/tools/**"
             ],
             "forcedInclude": [],
             "macFrameworkPath": [
